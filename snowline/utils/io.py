@@ -49,7 +49,7 @@ def get_coordinates(filename):
     strings = ['Upper Left', 'Lower Left', 'Upper Right', 'Lower Right']
     for count, iline in enumerate(range(iline+1, iline+5)):
         # Quick check whether this is the correct line:
-        assert metadata_text[iline].startswith(strings[count], "Wrong start of line: "+metadata_text[iline]
+        assert metadata_text[iline].startswith(strings[count]), "Wrong start of line: "+metadata_text[iline]
         coords.append(list(map(float, "".join(
                 metadata_text[iline].split()[3:5]).lstrip('(').rstrip(')').split(','))))
     return np.array(coords)

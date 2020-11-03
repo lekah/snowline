@@ -3,7 +3,6 @@ import numpy as np
 from scipy.ndimage import measurements
 
 
-
 class SnowMap(object):
     def __init__(self, array):
         """

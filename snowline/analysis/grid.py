@@ -16,7 +16,7 @@ class Grid(object):
 
     # The distance between neighboring gridpoint in meters
     # This could be changed by users in the future, for now I hard code here #TODO
-    GRID_PREC = 100
+    GRID_PREC = 300
     def __init__(self):
         self._origin = np.array(self.LOWER_LEFT)
 
@@ -31,13 +31,14 @@ class Grid(object):
 
         self._coords_mesh = np.array(np.meshgrid(grid_x, grid_y))
 
-    def transform_map(self, map_, coords):
+    def transform_map(self, map_, coords, fill_value):
         """
         Transforms a map in different coordinates (given by coords) to the internal grid.
 
         :param map_: A 2-D map
         :param coords: A list of 4 coordinates as returned by utils.io.get_coordinates,
             in the order upper left, lower left, upper right, lower right.
+        :param fill_value: The value to use for out-of-bounds points
         """
         # quick check to make sure coords are aligned as I expect
         for i, j, k, l in ((0,0,1,0), # Making sure first 2 vectors have same x coordinate (longitude).
@@ -46,9 +47,13 @@ class Grid(object):
 
         grid_x_given = np.linspace(coords[1][0], coords[2][0], map_.shape[0])
         grid_y_given = np.linspace(coords[1][1], coords[2][1], map_.shape[1])
-        rgi = RegularGridInterpolator((grid_x_given, grid_y_given), map_,
-                        bounds_error=False, fill_value=-1)
+        return self.transform_map_from_grid(map_, grid_x_given, grid_y_given, fill_value)
+
+    def transform_map_from_grid(self, map_, grid_x, grid_y, fill_value):
+        rgi = RegularGridInterpolator((grid_x, grid_y), map_,
+                        bounds_error=False, fill_value=fill_value)
         return rgi(self._coords_mesh.T, method='nearest').astype(map_.dtype)
+
 
     def transform_boundaries(self, boundaries):
         """

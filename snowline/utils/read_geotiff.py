@@ -2,6 +2,8 @@ import numpy as np
 import os
 from PIL import Image
 
+
+
 def load_array(filename):
     """
     Given a valid image, load the image and return the pixels as a numpy array

@@ -61,8 +61,21 @@ class Grid(object):
         Transform boundaries in internal grid, as returned by SnowMap.get_boundaries,
         to WGS coordinates.
         """
-        for snowfield_boundaries in boundaries:
-            tmp_list = []
-            for boundary in snowfield_boundaries:
-                tmp_list.append(self._transformation*boundary + self._origin)
-            yield tmp_list
+        for boundaries_this_cluster in boundaries:
+            yield transform_boundary(boundaries_this_cluster)
+
+    def transform_boundary(self, boundaries_cluster):
+        """
+        Transform a single boundary from internal grid
+        to WGS coordinates.
+        """
+        tmp_list = []
+        for boundary in boundaries_cluster:
+            tmp_list.append(self._transformation*boundary + self._origin)
+        return tmp_list
+
+    def zeros(self, dtype=np.int8):
+        """
+        Convenience function, returns a grid of the right shape filled with zeros
+        """
+        return np.zeros((self._gridsize_x, self._gridsize_y), dtype=dtype)

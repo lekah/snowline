@@ -26,6 +26,8 @@ class NetCDF4SnowMap(object):
                 raise ValueError("Missing variable {} in netCDF4 {}".format(
                         varname, filename))
         self._load_data()
+
+
     def _load_data(self):
 
         lat_data = self._ncfile.variables['lat'][:].data
@@ -94,7 +96,7 @@ class NetCDF4SnowMap(object):
 
         if transform:
             grid = Grid()
-            return grid, grid.transform_map_from_grid(snowmap.T,
+            return grid.transform_map_from_grid(snowmap.T,
                     self._vars[self._KEY_LON], self._vars[self._KEY_LAT], fill_value=PIXEL_UNKNOWN).T
         else:
             return snowmap

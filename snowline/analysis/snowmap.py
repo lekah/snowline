@@ -88,7 +88,7 @@ class SnowMap(object):
         msk_nonzero = cluster_indices != 0 # cluster 0 contains no snow, no need to include in count
         for cluster_index in cluster_indices[msk_nonzero]:
             cs  = plt.contour(snow_clusters==cluster_index, levels=(0.5,))
-            yield [seg-1 for seg in cs.allsegs[0]]
+            yield [(seg-1) for seg in cs.allsegs[0]]
         # Legacy code to make the boundary, which might be useful later
         # ~ boundary_msk = get_boundary_msk(snow_clusters, 1)
         # ~ R = np.array([[0,-1],[1,0]]) # Rotation matrix for 90 degress

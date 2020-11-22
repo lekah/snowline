@@ -11,8 +11,8 @@ WGS_DIST_Y = 111e3
 class Grid(object):
     # Using international WGS 84 coordinates. CH lies between 45.8 and 47.8N and between 5.9 and 10.5E 
     # Defining our grid here, hardcoded:
-    LOWER_LEFT = (45.7, 5.7)
-    UPPER_RIGHT = (47.9, 10.7)
+    LOWER_LEFT = ( 5.7, 45.7)
+    UPPER_RIGHT = (10.7, 47.9)
 
     # The distance between neighboring gridpoint in meters
     # This could be changed by users in the future, for now I hard code here #TODO
@@ -20,14 +20,14 @@ class Grid(object):
     def __init__(self):
         self._origin = np.array(self.LOWER_LEFT)
 
-        self._gridsize_y = int(np.round((self.UPPER_RIGHT[0] - self.LOWER_LEFT[0])*WGS_DIST_Y / self.GRID_PREC))
-        self._gridsize_x = int(np.round((self.UPPER_RIGHT[1] - self.LOWER_LEFT[1])*WGS_DIST_X / self.GRID_PREC))
+        self._gridsize_x = int(np.round((self.UPPER_RIGHT[0] - self.LOWER_LEFT[0])*WGS_DIST_X / self.GRID_PREC))
+        self._gridsize_y = int(np.round((self.UPPER_RIGHT[1] - self.LOWER_LEFT[1])*WGS_DIST_Y / self.GRID_PREC))
 
         self._transformation = (np.array(self.UPPER_RIGHT) - self._origin ) / np.array(
                 [self._gridsize_x, self._gridsize_y])
 
-        grid_y = np.linspace(self.LOWER_LEFT[0], self.UPPER_RIGHT[0], self._gridsize_y)
-        grid_x = np.linspace(self.LOWER_LEFT[1], self.UPPER_RIGHT[1], self._gridsize_x)
+        grid_x = np.linspace(self.LOWER_LEFT[0], self.UPPER_RIGHT[0], self._gridsize_x)
+        grid_y = np.linspace(self.LOWER_LEFT[1], self.UPPER_RIGHT[1], self._gridsize_y)
 
         self._coords_mesh = np.array(np.meshgrid(grid_x, grid_y))
 
@@ -40,6 +40,7 @@ class Grid(object):
             in the order upper left, lower left, upper right, lower right.
         :param fill_value: The value to use for out-of-bounds points
         """
+        raise NotImplemented("Haven't correctly implemented X Y")
         # quick check to make sure coords are aligned as I expect
         for i, j, k, l in ((0,0,1,0), # Making sure first 2 vectors have same x coordinate (longitude).
                 (2,0,3,0), (0,1,2,1), (1,1,3,1)): # Same for 3 additional checks

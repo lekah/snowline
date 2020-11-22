@@ -94,7 +94,7 @@ class NetCDF4SnowMap(object):
 
         if transform:
             grid = Grid()
-            return grid.transform_map_from_grid(snowmap.T,
+            return grid, grid.transform_map_from_grid(snowmap.T,
                     self._vars[self._KEY_LON], self._vars[self._KEY_LAT], fill_value=PIXEL_UNKNOWN).T
         else:
             return snowmap

@@ -10,7 +10,8 @@ setup(
     python_requires = '>=3.7',
     packages = find_packages(),
     install_requires = [
-        "numpy",
+        "matplotlib",
+	"numpy",
         "scipy",
         "netCDF4",
         "boto3"

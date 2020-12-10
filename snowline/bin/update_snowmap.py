@@ -74,5 +74,4 @@ if __name__ == '__main__':
     parser.add_argument('-d', '--dry-run', action='store_true',
             help='Set this to make it a dry run and not upload to DB')
 
-    # Not tested if this is all working!
     update_snowmap(**vars(parser.parse_args()))

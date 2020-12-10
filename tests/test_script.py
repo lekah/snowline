@@ -19,7 +19,8 @@ class TestUpdateScript(unittest.TestCase):
                 new_update_map_path=None, allow_start_zeros=False, dry_run=True)
         update_snowmap(None, netcdf_file_path=netcdf_file_path,
                 new_update_map_path=new_update_map_path,
-                allow_start_zeros=True, dry_run=True)
+                allow_start_zeros=True, dry_run=True,
+                size_filter_snow=100)
         
         self.assertTrue(new_update_map_path, os.listdir('./'))
         os.remove(new_update_map_path)

@@ -27,9 +27,11 @@ class SnowlineDB(object):
                 aws_access_key_id=aws_access_key_id,
                 aws_secret_access_key=aws_secret_access_key)
 
-    def upload(self, boundaries, dry_run=False, halt_when_testing=True):
-        now = datetime.datetime.now()
-        timestamp = int(now.timestamp())
+    def upload(self, boundaries, dry_run=False, halt_when_testing=True,
+            picture_datetime=None):
+        if picture_datetime is None:
+            picture_datetime = datetime.datetime.now()
+        timestamp = int(picture_datetime.timestamp())
 
         dbobj = self._s3_resource.Object(self._dbbucketname, self._dbname)
         
@@ -45,7 +47,8 @@ class SnowlineDB(object):
                 database = json.load(f)
 
             new_sl_data = boundaries_to_geo(boundaries)
-            new_sl_filename = 'snowline_{}.json'.format(datetime.datetime.strftime(now, "%Y%m%d_%H%M"))
+            new_sl_filename = 'snowline_{}.json'.format(
+                    datetime.datetime.strftime(picture_datetime, "%Y%m%d_%H%M"))
             print(" Done\nWriting snowline boundaries to {}...",format(new_sl_filename))
             with open(os.path.join(tmpdirname,new_sl_filename), 'w') as f:
                 json.dump(new_sl_data, f)

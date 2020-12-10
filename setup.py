@@ -11,7 +11,7 @@ setup(
     packages = find_packages(),
     install_requires = [
         "matplotlib",
-	"numpy",
+        "numpy",
         "scipy",
         "netCDF4",
         "boto3"

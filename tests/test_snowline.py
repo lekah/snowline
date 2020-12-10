@@ -1,6 +1,6 @@
 import unittest
 import numpy as np
-import os
+import os, tempfile
 from scipy.ndimage import measurements
 
 from snowline.analysis.snowmap import SnowMap, UpdatedSnowMap
@@ -53,5 +53,40 @@ class TestUpdate(unittest.TestCase):
         # Since the map was originally only 0, the update is equal to the new map
         self.assertTrue(np.abs(usm.get_array()-changemap).sum() == 0)
 
+    def test_update2(self):
+        grid = Grid()
+        nullmap = grid.zeros()
+        filename = os.path.join(
+                os.path.abspath(os.path.dirname(__file__)), 
+                'data',
+                'L2SNOW_reproj_idepix_subset_S3A_OL_1_EFR____20180102T100908_20180102T101208_20180103T152552_0179_026_179_2160_LN1_O_NT_002.SEN3.nc'
+            )
+        snowmap_ntf = SnowMap.from_netcdf(filename, transform=True)
+        usm = UpdatedSnowMap(array=nullmap, is_internal=True)
+        usm.update(snowmap_ntf)
+        # Since the map was originally only 0, the update is equal to the new map
+        self.assertTrue(np.all(snowmap_ntf.get_array() == usm.get_array) == 0)
+
+class TestSaveLoad(unittest.TestCase):
+    def test_save_load_1(self):
+        grid = Grid()
+        nullmap = grid.zeros()
+        randommap = np.random.choice(np.arange(-1,2),
+                    size=nullmap.shape).astype('int8')
+        filename = 'smap.tar.gz'
+        for is_internal in (True, False):
+            attributes =  dict(is_internal=is_internal)
+            # ~ with tempfile.TemporaryFile() as filename:
+            smap_old = SnowMap(randommap, **attributes)
+            smap_old.save(filename)
+            smap_new = SnowMap.load(filename)
+
+            self.assertTrue(
+                np.all(smap_new.get_array() == smap_old.get_array()))
+            self.assertTrue(
+                np.all(smap_new.get_array() == randommap))
+            self.assertTrue(smap_new._get_attributes(
+                    ) == smap_new._get_attributes() == attributes)
+            os.remove(filename)
 if __name__ == '__main__':
     unittest.main()

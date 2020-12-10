@@ -1,12 +1,12 @@
+import numpy as np
+
 from snowline.analysis.snowmap import SnowMap, UpdatedSnowMap
 from snowline.analysis.grid import Grid
 from snowline.utils.s3_io import SnowlineDB, boundaries_to_geo
 
 
-
-
 def update_snowmap(update_map_path, netcdf_file_path,
-        new_update_map_path=None, allow_start_zeros=False,
+        new_update_map_path=None, allow_start_zeros=True,
         dry_run=False):
     """
     Takes as input the path to a valid stored instance of UpdateMap and
@@ -20,27 +20,43 @@ def update_snowmap(update_map_path, netcdf_file_path,
     :param bool dry_run: Perform a dry run, do not upload to AWS
     """
     try:
+        print("Reading state map from {}... ".format(update_map_path), end="")
+        if update_map_path is None:
+            raise OSError("None is not a valid path")
         usm = UpdatedSnowMap.load(update_map_path)
+        print("Done")
     except OSError as e:
         if allow_start_zeros:
+            print("Failed, initializing with zeros")
             grid = Grid()
-            usm = UpdatedSnowMap(array=Grid().zeros(), s_internal=True)
+            usm = UpdatedSnowMap(array=Grid().zeros(), is_internal=True)
         else:
+            print("Received exception: {}".format(e))
             raise e
-    snowmap = SnowMap.from_netcdf(filename, transform=False)
-    # Updating the array
-    usm.update(snowmap)
+    print("Reading NetCDF file {}... ".format(netcdf_file_path),end="")
+    snowmap = SnowMap.from_netcdf(netcdf_file_path, transform=True)
+    array = snowmap.get_array()
+    print("Done, obtained file of shape {} x {}\n"
+            "Distribution of pixel values is:".format(*array.shape))
+    for unique, count in zip(*np.unique(array, return_counts=True)):
+        print("  {:<2}: {}".format(unique, count))
 
+    print("Updating state map... ", end="")
+    usm.update(snowmap)
+    print("Done\n")
     # If wanted, store the array:
     if new_update_map_path is not None:
+        print("Saving state map to {}".format(new_update_map_path))
         usm.save(new_update_map_path)
 
+    print("Calculating state map boundaries")
     boundaries = list(usm.get_boundaries(transform=True))
-
+    print("Done")
     snowlinedb_kwargs = dict(dbbucketname='snowlines-database',
             snowlinebucketname='snowlines',
             dbname='snowline.json')
     # TODO: allow for user update of snowlinedb_kwargs
-    sdb = SnowlineDB{**snowlinedb_kwargs)
-    sdb.upload(boundaries, dry_run=dry_run)
+    sdb = SnowlineDB(**snowlinedb_kwargs)
+    sdb.upload(boundaries, dry_run=dry_run, halt_when_testing=False)
+
     

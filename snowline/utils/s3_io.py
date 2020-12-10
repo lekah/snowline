@@ -24,7 +24,7 @@ class SnowlineDB(object):
         self._dbname = dbname
         self._s3_resource = boto3.resource('s3')
 
-    def upload(self, boundaries, dry_run=False):
+    def upload(self, boundaries, dry_run=False, halt_when_testing=True):
         now = datetime.datetime.now()
         timestamp = int(now.timestamp())
 
@@ -32,7 +32,7 @@ class SnowlineDB(object):
         
         
         
-        # Creating a temporary directory to working
+        # Creating a temporary directory to work in:
         with tempfile.TemporaryDirectory() as tmpdirname:
             print("Working in temporary directory {}".format(tmpdirname))
             dbfilename = os.path.join(tmpdirname, 'snowlines.json')
@@ -65,4 +65,5 @@ class SnowlineDB(object):
                 dbobj.upload_file(dbfilename)
                 print("Done")
             else:
-                input("This is a dry run, enter to delete temp dir")
+                if halt_when_testing:
+                    input("This is a dry run, enter to delete temp dir")

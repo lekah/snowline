@@ -1,7 +1,10 @@
 from matplotlib import pyplot as plt
 import numpy as np
+import tarfile, tempfile, json, os
+
 from scipy.ndimage import measurements
 from snowline.analysis.grid import Grid
+
 
 PIXEL_SNOW = 1
 PIXEL_UNKNOWN = 0
@@ -9,6 +12,8 @@ PIXEL_NOSNOW = -1
 
 
 class SnowMap(object):
+    _ARRAY_FILENAME = 'array.npy'
+    _ATTRIBUTE_FILENAME = 'attributes.json'
     def __init__(self, array, is_internal=False):
         """
         :param array: the original array, containing values of -1 for no snow, 1 for snow,
@@ -37,9 +42,53 @@ class SnowMap(object):
         netcdf = NetCDF4SnowMap(filename)
         array = netcdf.get_snowmap(transform=transform)
         return cls(array=array, is_internal=transform)
+    @classmethod
+    def load(cls, filename):
+        """
+        Given a filename, load the arrays and return a new instance of the class.
+        The filename should ideally be created with the SnowMap.store method.
+        If created by hand, it has to be a valid tar.gz compressed tar.
+        """
 
+        with tempfile.TemporaryDirectory() as temp_folder:
+            with tarfile.open(filename, "r:gz", format=tarfile.PAX_FORMAT) as tar:
+                tar.extractall(temp_folder)
+
+            files_in_tar = set(os.listdir(temp_folder))
+            if not cls._ATTRIBUTE_FILENAME in files_in_tar:
+                raise OSError("Attributes file missing")
+            if not cls._ARRAY_FILENAME in files_in_tar:
+                raise OSError("Array file missing")
+
+            with open(os.path.join(temp_folder, cls._ATTRIBUTE_FILENAME)) as f:
+                attributes = json.load(f)
+            array = np.load(os.path.join(temp_folder, cls._ARRAY_FILENAME))
+            # TODO checks whether array is valid!
+            new = cls(array, **attributes)
+        return new
+
+    def _get_attributes(self):
+        """
+        Utility function that returns all attributes to recreate an
+        instance of this class
+        """
+        return {"is_internal":self._is_internal}
+
+    def save(self, filename):
+        """
+        Saves the trajectory instance to tarfile.
+        :param str filename: The filename. Won't be checked or modified with extension!
+        """
+        with tempfile.TemporaryDirectory() as temp_folder:
+            np.save(os.path.join(temp_folder, self._ARRAY_FILENAME), self._array)
+            with open(os.path.join(temp_folder, self._ATTRIBUTE_FILENAME), 'w') as f:
+                json.dump(self._get_attributes(), f)            
+            with tarfile.open(filename, "w:gz", format=tarfile.PAX_FORMAT) as tar:
+                tar.add(temp_folder, arcname="")
+
+    
     def copy(self):
-        return self.__class__(array=self._array, is_internal=self._is_internal)
+        return self.__class__(array=self._array, **self._get_attributes())
 
     def get_array(self):
         return self._array.copy()

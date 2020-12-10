@@ -78,4 +78,4 @@ class Grid(object):
         """
         Convenience function, returns a grid of the right shape filled with zeros
         """
-        return np.zeros((self._gridsize_x, self._gridsize_y), dtype=dtype)
+        return np.zeros((self._gridsize_y, self._gridsize_x), dtype=dtype)

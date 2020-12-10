@@ -19,6 +19,8 @@ def update_snowmap(update_map_path, netcdf_file_path,
     :param bool allow_start_zeros: If set to True, allows to initialize
         an update map with zeros if update_map_path is None or invalid.
     :param bool dry_run: Perform a dry run, do not upload to AWS
+    :param aws_access_key_id: The id for aws if not stored in $HOME/.aws
+    :param aws_secret_access_key: The key for aws if not stored in $HOME/.aws
     """
     try:
         print("Reading state map from {}... ".format(update_map_path), end="")

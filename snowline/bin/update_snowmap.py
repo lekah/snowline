@@ -7,7 +7,8 @@ from snowline.utils.s3_io import SnowlineDB, boundaries_to_geo
 
 def update_snowmap(update_map_path, netcdf_file_path,
         new_update_map_path=None, allow_start_zeros=True,
-        dry_run=False):
+        dry_run=False, aws_access_key_id=None,
+            aws_secret_access_key=None):
     """
     Takes as input the path to a valid stored instance of UpdateMap and
     the path to a valid NetCDF file, and updates the map.
@@ -54,7 +55,9 @@ def update_snowmap(update_map_path, netcdf_file_path,
     print("Done")
     snowlinedb_kwargs = dict(dbbucketname='snowlines-database',
             snowlinebucketname='snowlines',
-            dbname='snowline.json')
+            dbname='snowline.json',
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key)
     # TODO: allow for user update of snowlinedb_kwargs
     sdb = SnowlineDB(**snowlinedb_kwargs)
     sdb.upload(boundaries, dry_run=dry_run, halt_when_testing=False)

@@ -18,11 +18,14 @@ def boundaries_to_geo(boundaries):
 class SnowlineDB(object):
     def __init__(self, dbbucketname='snowlines-database',
             snowlinebucketname='snowlines',
-            dbname='snowline.json'):
+            dbname='snowline.json', aws_access_key_id=None,
+            aws_secret_access_key=None):
         self._dbbucketname = dbbucketname
         self._snowlinebucketname = snowlinebucketname
         self._dbname = dbname
-        self._s3_resource = boto3.resource('s3')
+        self._s3_resource = boto3.resource('s3',
+                aws_access_key_id=aws_access_key_id,
+                aws_secret_access_key=aws_secret_access_key)
 
     def upload(self, boundaries, dry_run=False, halt_when_testing=True):
         now = datetime.datetime.now()
@@ -60,7 +63,8 @@ class SnowlineDB(object):
             # upload
             if not dry_run:
                 print("Uploading database and new snowline to bucket... ", end="")
-                slobj = self._s3_resource.Object(self._snowlinebucketname, new_sl_filename)
+                slobj = self._s3_resource.Object(
+                        self._snowlinebucketname, new_sl_filename)
                 slobj.upload_file(os.path.join(tmpdirname, new_sl_filename))
                 dbobj.upload_file(dbfilename)
                 print("Done")

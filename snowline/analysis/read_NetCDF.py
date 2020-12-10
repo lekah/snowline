@@ -52,7 +52,8 @@ class NetCDF4SnowMap(object):
         for key, newkey in self._KEY_DICT.items():
             try:
                 # Loading just the negative mask that is everything we need:
-                data = ~self._ncfile[key][:,:].mask.T
+                # data = ~self._ncfile[key][:,:].mask.T
+                data = self._ncfile[key][:,:] > 1
             except KeyError:
                 if key in self._REQUIRED_VARS:
                     raise KeyError("Key {} not in NetCDF".format(key))
@@ -60,7 +61,7 @@ class NetCDF4SnowMap(object):
                     continue
             if invert_lat:
                 data = data[::-1, :]
-            self._vars[newkey] = data.T[::-1,::-1]
+            self._vars[newkey] = data
 
 
     def get_snowmap(self, transform=True):

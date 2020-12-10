@@ -59,4 +59,20 @@ def update_snowmap(update_map_path, netcdf_file_path,
     sdb = SnowlineDB(**snowlinedb_kwargs)
     sdb.upload(boundaries, dry_run=dry_run, halt_when_testing=False)
 
-    
+
+if __name__ == '__main__':
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
+    parser.add_argument('-u', '--update_map_path', help=('The path to the'
+            'old state map'))
+    parser.add_argument('-c', '--netcdf_file_path', help=("Path to NetCDF "
+            "file to be used for update"), required=True)
+    parser.add_argument('-n', '--new_update_map_path',
+            help='Where to store the new state map (if not provided will not store')
+    parser.add_argument('-z', '--allow_start_zeros', action='store_true',
+        help='If true, allows to start from 0 if there is no update_map_path given')
+    parser.add_argument('-d', '--dry-run', action='store_true',
+            help='Set this to make it a dry run and not upload to DB')
+
+    # Not tested if this is all working!
+    update_snowmap(**vars(parser.parse_args()))

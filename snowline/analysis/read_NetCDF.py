@@ -5,7 +5,7 @@ from snowline.analysis.grid import Grid
 
 class NetCDF4SnowMap(object):
     _REQUIRED_VARS = ('lon', 'lat', 'IDEPIX_CLOUD', 
-            'IDEPIX_SNOW_ICE')
+            'IDEPIX_SNOW_ICE', 'RED')
     _OPTIONAL_VARS = ('IDEPIX_CLOUD_BUFFER', 'IDEPIX_INVALID')
     _KEY_DICT = {
             'IDEPIX_CLOUD':'cloud',
@@ -13,6 +13,7 @@ class NetCDF4SnowMap(object):
             'IDEPIX_CLOUD_BUFFER':'cloud_buffer',
             'IDEPIX_INVALID':'invalid',
             'IDEPIX_LAND':'land',
+            'RED':'red',
     }
     _KEY_LON = 'lon'
     _KEY_LAT = 'lat'
@@ -90,6 +91,8 @@ class NetCDF4SnowMap(object):
                 # So far not checking whether cloud_buffer and invalid are given.
                 # so ignoring this error
                 pass
+        # Little hack: colorbands are NaN for undefined pixels
+        snowmap[np.isnan(self._vars['red']).mask] = PIXEL_UNKNOWN
 
         # setting pixels to 1 that definitely contain snow
         # some pixels that were with cloud_buffer will be overwritten

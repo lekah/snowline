@@ -55,7 +55,12 @@ class SnowlineDB(object):
 
 
             database['updated'] = timestamp
-            database['data'].append({'id':max([d['id'] for d in database['data']])+1,
+            try:
+                current_max_id = max([d['id'] for d in database['data']])
+            except ValueError:
+                # max raises Value Error if an empty sequence is passed
+                current_max_id = 0
+            database['data'].append({'id':current_max_id+1,
                     'datetime':timestamp, 'url':new_sl_filename})
             print(" Done\nWriting new database... ", end='')
             with open(dbfilename, 'w') as f:

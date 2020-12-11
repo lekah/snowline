@@ -71,8 +71,8 @@ def update_snowmap(update_map_path, netcdf_file_path,
         print("Saving state map to {}".format(new_update_map_path))
         usm.save(new_update_map_path)
     
-    usm.filter_size_snow(size_filter_snow)
-    usm.filter_size_nonsnow(size_filter_nonsnow)
+    usm.filter_size_snow(size_filter_snow, verbose=True)
+    usm.filter_size_nonsnow(size_filter_nonsnow, verbose=True)
     print("Calculating state map boundaries")
     boundaries = list(usm.get_boundaries(transform=True))
     print("Done")

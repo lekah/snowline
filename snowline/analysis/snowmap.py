@@ -93,7 +93,7 @@ class SnowMap(object):
     def get_array(self):
         return self._array.copy()
 
-    def filter_size_nonsnow(self, limit_nonsnow_patch_size):
+    def filter_size_nonsnow(self, limit_nonsnow_patch_size, verbose=False):
         """
         Cleans up snowmap by first finding patches (=clusters) of non-snow within snow and, second,
         getting rid of small non-snow clusters below the threshold size.
@@ -106,22 +106,27 @@ class SnowMap(object):
     
         # Use scipy measurements.label to find clusters.
 
-        nonsnow_clusters, num_clusters = measurements.label(self._array==PIXEL_NOSNOW, 
-                                structure=self._structure)
+        nonsnow_clusters, num_clusters = measurements.label(
+                self._array==PIXEL_NOSNOW, 
+                structure=self._structure)
         cluster_indices, counts = np.unique(nonsnow_clusters, return_counts=True)
         msk_nonzero = cluster_indices != 0 # cluster 0 contains no snow, no need to include in count
 
         # remove all cluster that are smaller than limit
         small_cluster_indices = cluster_indices[counts < limit_nonsnow_patch_size]
+        if verbose:
+            print('   Reduced nonsnow clusters from {} to {}'.format(
+                    num_clusters, num_clusters - len(small_cluster_indices)))
         msk = np.isin(nonsnow_clusters, small_cluster_indices)
         # msk is now set to True for all clusters that are smmaller limit_snow
         self._array[msk] = PIXEL_SNOW
 
-    def filter_size_snow(self, limit_snow_patch_size):
+    def filter_size_snow(self, limit_snow_patch_size, verbose=False):
         """
         Cleans up snowmap by finding patches (=clusters) of snow and
         removing clusters below the threshold size.
         :param int limit_snow_patch_size: the threshold cluster size
+        :param bool verbose: If true, prints information on cluster sizes
         """
         if limit_snow_patch_size < 1:
             return
@@ -133,11 +138,15 @@ class SnowMap(object):
         cluster_indices, counts = np.unique(snow_clusters, return_counts=True)
         msk_nonzero = cluster_indices != 0 # cluster 0 contains no snow, no need to include in count
         small_cluster_indices = cluster_indices[counts < limit_snow_patch_size]
+        if verbose:
+            print('   Reduced snow clusters from {} to {}'.format(
+                    num_clusters, num_clusters - len(small_cluster_indices)))
         msk = np.isin(snow_clusters, small_cluster_indices)
         self._array[msk] = PIXEL_NOSNOW
 
     def get_num_clusters(self):
-        return measurements.label(self._array==PIXEL_SNOW, structure=self._structure)[1]
+        return measurements.label(self._array==PIXEL_SNOW,
+                structure=self.  _structure)[1]
 
     def get_boundaries(self, transform=False):
         """

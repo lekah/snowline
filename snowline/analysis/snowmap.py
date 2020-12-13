@@ -1,3 +1,4 @@
+import datetime
 from matplotlib import pyplot as plt
 import numpy as np
 import tarfile, tempfile, json, os
@@ -93,21 +94,27 @@ class SnowMap(object):
     def get_array(self):
         return self._array.copy()
 
-    def filter_size_nonsnow(self, limit_nonsnow_patch_size, verbose=False):
+    def filter_size_nonsnow(self, limit_nonsnow_patch_size,
+            include_unknown=True, verbose=False):
         """
         Cleans up snowmap by first finding patches (=clusters) of non-snow within snow and, second,
         getting rid of small non-snow clusters below the threshold size.
-        :param int limit_nonsnow_patch_size: the threshold below which clusters of non-snow are
-        removed.
+        :param int limit_nonsnow_patch_size: the threshold below which
+                clusters of non-snow are removed.
+        :param bool include_unknown: Treat unknown pixels as pixels not
+                containing snow
+        :param bool verbose: Allow for prints to stdout
         """
 
         if limit_nonsnow_patch_size < 1:
             return
-    
-        # Use scipy measurements.label to find clusters.
 
-        nonsnow_clusters, num_clusters = measurements.label(
-                self._array==PIXEL_NOSNOW, 
+        if include_unknown:
+            msk = (self._array==PIXEL_NOSNOW) | (self._array==PIXEL_UNKNOWN)
+        else:
+            msk = (self._array==PIXEL_NOSNOW)
+        # Use scipy measurements.label to find clusters.
+        nonsnow_clusters, num_clusters = measurements.label(msk,
                 structure=self._structure)
         cluster_indices, counts = np.unique(nonsnow_clusters, return_counts=True)
         msk_nonzero = cluster_indices != 0 # cluster 0 contains no snow, no need to include in count
@@ -121,19 +128,26 @@ class SnowMap(object):
         # msk is now set to True for all clusters that are smmaller limit_snow
         self._array[msk] = PIXEL_SNOW
 
-    def filter_size_snow(self, limit_snow_patch_size, verbose=False):
+    def filter_size_snow(self, limit_snow_patch_size,
+            include_unknown=True, verbose=False):
         """
         Cleans up snowmap by finding patches (=clusters) of snow and
         removing clusters below the threshold size.
         :param int limit_snow_patch_size: the threshold cluster size
-        :param bool verbose: If true, prints information on cluster sizes
+        :param bool include_unknown: Treat unknown pixels as pixels
+                containing snow
+        :param bool verbose: Allow for prints to stdout
         """
         if limit_snow_patch_size < 1:
             return
+        if include_unknown:
+            msk = (self._array==PIXEL_SNOW) | (self._array==PIXEL_UNKNOWN)
+        else:
+            msk = (self._array==PIXEL_SNOW)
         # Use scipy measurements.label to find clusters.
         # structure tells it which neighborhood kind to apply.
-        # For now Neumann, but maybe this can be an input #TODO
-        snow_clusters, num_clusters = measurements.label(self._array==PIXEL_SNOW, 
+        # For now Neumann, but maybe this can be an input
+        snow_clusters, num_clusters = measurements.label(msk,
                         structure=self._structure)
         cluster_indices, counts = np.unique(snow_clusters, return_counts=True)
         msk_nonzero = cluster_indices != 0 # cluster 0 contains no snow, no need to include in count
@@ -157,7 +171,7 @@ class SnowMap(object):
         array = np.concatenate([np.zeros((1, self._array.shape[1])), self._array, 
                 np.zeros((1, self._array.shape[1]))], axis=0)
         array = np.concatenate([np.zeros((array.shape[0], 1)), array, np.zeros((array.shape[0], 1))], axis=1)
-
+        # TODO option to treat unknown as having snow?
         snow_clusters, num_clusters = measurements.label(array==PIXEL_SNOW,
                             structure=self._structure)
         cluster_indices, counts = np.unique(snow_clusters, return_counts=True)
@@ -179,14 +193,20 @@ class UpdatedSnowMap(SnowMap):
     A subclass of SnowMap, whole instances can be update with
     simple rules
     """
-    def update(self, other):
+    def __init__(self, *args, **kwargs):
+        # Make a way to pass a datetime. JSON Compatible!
+        self._timestamp = kwargs.pop('timestamp', None)
+        super().__init__(*args, **kwargs)
+
+    def update(self, other, timestamp=None):
         """
-        Will update the internal snowmap given the data in the  input snowmap.
+        Will update the internal snowmap given the data in the input snowmap.
         Rules are (pixelwise):
           * if new map indicates snow, change to snow
           * if new map indicates no snow, change to no snow
           * if new map indicates unknown, do not change
         :param other: a valid snowmap
+        :param timestamp: A timestamp of other
         """
         # first some checks on the snowmap:
         if not isinstance(other, SnowMap):
@@ -198,3 +218,19 @@ class UpdatedSnowMap(SnowMap):
         array = other.get_array()
         self._array[array==PIXEL_SNOW] = PIXEL_SNOW
         self._array[array == PIXEL_NOSNOW] = PIXEL_NOSNOW
+        self._timestamp = timestamp
+
+    def get_timestamp(self):
+        return self._timestamp
+
+    def is_newer(self, timestamp):
+        """
+        Given a timestamp, return True if this timestamp is newer (or if
+        own timestamp is Nonw
+        """
+        return self._timestamp is None or self._timestamp < timestamp
+
+    def _get_attributes(self):
+        attrs = super()._get_attributes()
+        attrs.update({'timestamp':self._timestamp})
+        return attrs

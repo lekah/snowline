@@ -29,9 +29,13 @@ class TestSnowmap(unittest.TestCase):
 
         for min_cluster_size in np.linspace(10, 100, 4).astype(int):
             sm = snowmap.copy()
-            sm.filter_size_snow(min_cluster_size)
+            sm.filter_size_snow(min_cluster_size, include_unknown=False)
+            # Include_unknown has to be set to False as cluster could
+            # get larger than minsize due to unknown fields, however
+            # only those are tested later.
             # Testing whether there's any cluster smaller than the testsize
-            snow_clusters, num_clusters = measurements.label(sm.get_array()==1,
+            snow_clusters, num_clusters = measurements.label(
+                    sm.get_array()==1,
                     structure=sm._structure)
             cluster_indices, counts = np.unique(snow_clusters, return_counts=True)
             msk_nonzero = cluster_indices != 0 # cluster 0 contains no snow, no need to include in count

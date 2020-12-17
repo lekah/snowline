@@ -143,7 +143,7 @@ class SnowMapUpdater(object):
         if self._verbose:
             print("Done")
 
-    def upload(self, dry_run=False, ):
+    def upload(self, dry_run=False, wipe_previous=False):
         if self._boundaries is None:
             raise RuntimeError("Upload called without calculate_boundaries"
                 " having been called")
@@ -154,7 +154,8 @@ class SnowMapUpdater(object):
         # TODO: allow for user update of snowlinedb_kwargs
         sdb = SnowlineDB(**snowlinedb_kwargs)
         sdb.upload(self._boundaries, dry_run=dry_run,
-                timestamp=self._usm.get_timestamp(), verbose=self._verbose)
+                timestamp=self._usm.get_timestamp(), verbose=self._verbose,
+                wipe_previous=wipe_previous)
 
 
 def update_snowmap(state_map=None, new_state_map=None,
@@ -163,7 +164,7 @@ def update_snowmap(state_map=None, new_state_map=None,
         aws_secret_access_key=None,
         size_filter_snow=0, size_filter_nonsnow=0,
         dry_run=False, no_upload=False, no_boundaries=False,
-        quiet=False):
+        quiet=False, wipe_previous=False):
     """
     Takes as input the path to a instance of UpdateMap (if None creates one)
     and queries the DB for satellite images newer than this UpdateMap.
@@ -181,6 +182,8 @@ def update_snowmap(state_map=None, new_state_map=None,
     :param bool dry_run: Perform a dry run, do not upload to AWS but
         put in temporary directory
     :param bool quiet: Quiet run, disable verbosity
+    :param bool wipe_previous: Wipe the database from all previous data
+        when uploading
     """
     smu = SnowMapUpdater(update_map_path=state_map,
             allow_blank=allow_blank, verbose=not(quiet))
@@ -198,7 +201,7 @@ def update_snowmap(state_map=None, new_state_map=None,
             size_filter_nonsnow=size_filter_nonsnow)
     if no_upload:
         return
-    smu.upload(dry_run=dry_run)
+    smu.upload(dry_run=dry_run, wipe_previous=wipe_previous)
 
 
 
@@ -231,5 +234,7 @@ if __name__ == '__main__':
                 'Will write files to be uploaded to a temporary directory')
     parser.add_argument('-q', '--quiet', action='store_true',
             help='Perform a quiet run (no verbose output)')
+    parser.add_argument('--wipe-previous', action='store_true',
+            help='Wipes all previous data from the database, use with care')
     parsed = parser.parse_args()
     update_snowmap(**vars(parsed))

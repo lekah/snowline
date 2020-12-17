@@ -14,6 +14,10 @@ def boundaries_to_geo(boundaries):
     return {'type': 'FeatureCollection',
           'features':features}
 
+def geo_to_boundaries(geo_dict):
+    return [feat['geometry']['coordinates']
+            for feat in geo_dict['features']]
+
 
 class S3DB(object, metaclass=ABCMeta):
     def __init__(self, aws_access_key_id=None,
@@ -58,8 +62,24 @@ class SnowlineDB(S3DB):
         self._dbname = dbname
         super().__init__(**kwargs)
 
+    def download_db(self):
+        """
+        Utility function, download db locally for inspection
+        """
+        dbobj = self._s3_resource.Object(self._dbbucketname, self._dbname)
+        dbobj.download_file(self._dbname)
+
     def upload(self, boundaries, dry_run=False, timestamp=None,
-            verbose=True):
+            verbose=True, wipe_previous=False):
+        """
+        :param boundaries: The boundaries as calculated by snowmap.get_boundaries
+        :param bool dry_run: Whether this is a dry_run, if True will not upload
+            but write to a directory
+        :param timestamp: The timestamp to write to the DB. If None, will chose
+            now()
+        :param bool verbose: Enables verbose output
+        :param bool wipe_previous: Deletes all previous data in the DB.
+        """
         if timestamp is None:
             timestamp = datetime.datetime.now().timestamp()
 
@@ -69,7 +89,7 @@ class SnowlineDB(S3DB):
         with tempfile.TemporaryDirectory() as tmpdirname:
             if verbose:
                 print("Working in temporary directory {}".format(tmpdirname))
-            dbfilename = os.path.join(tmpdirname, 'snowlines.json')
+            dbfilename = os.path.join(tmpdirname, self._dbname)
             if verbose:
                 print("Downloading database...", end='')
             dbobj.download_file(dbfilename)
@@ -87,11 +107,16 @@ class SnowlineDB(S3DB):
 
 
             database['updated'] = timestamp
-            try:
-                current_max_id = max([d['id'] for d in database['data']])
-            except ValueError:
-                # max raises Value Error if an empty sequence is passed
-                current_max_id = 0
+            if wipe_previous:
+                if verbose:
+                    print(" Deleting previous data in DB")
+                database['data'] = []
+
+            current_max_id = max([0] + [d['id'] for d in database['data']])
+            # THe [0] + [ is to avoid get 0 when database is empty
+            # otherwise raises a ValueError.
+
+
             database['data'].append({'id':current_max_id+1,
                     'datetime':timestamp, 'url':new_sl_filename})
             if verbose:
@@ -123,3 +148,13 @@ class SnowlineDB(S3DB):
                             dirpath))
                     shutil.copytree(tmpdirname, dirpath)
                     break
+
+if __name__ == '__main__':
+    from argparse import ArgumentParser
+    parser = ArgumentParser()
+    parser.add_argument('-d', '--download-database', action='store_true',
+            help=('Downloads the DB locally'))
+    parsed = parser.parse_args()
+    if parsed.download_database:
+        sdb = SnowlineDB()
+        sdb.download_db()

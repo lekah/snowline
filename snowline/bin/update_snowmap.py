@@ -63,7 +63,8 @@ class SnowMapUpdater(object):
             raise OSError("Cache ({}) is not a directory".format(cache))
         if self._verbose:
             print("Seaching in {} for files".format(sattelite_bucketname))
-        satellite = SatelliteDB(dbbucketname=sattelite_bucketname)
+        satellite = SatelliteDB(dbbucketname=sattelite_bucketname,
+                **self._aws_dict)
         files_in_bucket = satellite.get_files()
         chosen_files = []
         for netcdf_file in files_in_bucket:
@@ -159,9 +160,8 @@ class SnowMapUpdater(object):
 
 
 def update_snowmap(state_map=None, new_state_map=None,
-        netcdf_files=[], cache=None,
-        allow_blank=True, aws_access_key_id=None,
-        aws_secret_access_key=None,
+        netcdf_files=[], cache=None, allow_blank=True,
+        aws_access_key_id=None, aws_secret_access_key=None,
         size_filter_snow=0, size_filter_nonsnow=0,
         dry_run=False, no_upload=False, no_boundaries=False,
         quiet=False, wipe_previous=False):
@@ -186,7 +186,9 @@ def update_snowmap(state_map=None, new_state_map=None,
         when uploading
     """
     smu = SnowMapUpdater(update_map_path=state_map,
-            allow_blank=allow_blank, verbose=not(quiet))
+            allow_blank=allow_blank, verbose=not(quiet),
+            aws_access_key_id=aws_access_key_id,
+            aws_secret_access_key=aws_secret_access_key)
     if netcdf_files:
         smu.set_netcdf_files(*netcdf_files) #TODO allow for multiples?
     else:
@@ -236,5 +238,9 @@ if __name__ == '__main__':
             help='Perform a quiet run (no verbose output)')
     parser.add_argument('--wipe-previous', action='store_true',
             help='Wipes all previous data from the database, use with care')
+    parser.add_argument('--aws-access-key-id', help="Access key id for"
+            "upload, othewise will be read in ~/.aws by boto3")
+    parser.add_argument('--aws-secret-access-key', help="Access key for"
+            "upload, othewise will be read in ~/.aws by boto3")
     parsed = parser.parse_args()
     update_snowmap(**vars(parsed))

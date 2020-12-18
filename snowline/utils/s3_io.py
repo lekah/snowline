@@ -101,7 +101,7 @@ class SnowlineDB(S3DB):
                     datetime.datetime.strftime(
                         datetime.datetime.fromtimestamp(timestamp), "%Y%m%d_%H%M"))
             if verbose:
-                print(" Done\nWriting snowline boundaries to {}...",format(new_sl_filename))
+                print(" Done\nWriting snowline boundaries to {}...".format(new_sl_filename))
             with open(os.path.join(tmpdirname,new_sl_filename), 'w') as f:
                 json.dump(new_sl_data, f)
 

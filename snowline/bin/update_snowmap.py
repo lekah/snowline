@@ -1,11 +1,15 @@
 
 
 import numpy as np, os
+import datetime
 from snowline.analysis.snowmap import SnowMap, UpdatedSnowMap
 from snowline.analysis.grid import Grid
 from snowline.utils.time_utils import get_datetime_from_filename
 from snowline.utils.s3_io import SnowlineDB, SatelliteDB, boundaries_to_geo
 
+
+class UploadWithoutUpdateError(Exception):
+    pass
 
 class SnowMapUpdater(object):
     def __init__(self, update_map_path=None, allow_blank=True,
@@ -51,30 +55,56 @@ class SnowMapUpdater(object):
             dt = get_datetime_from_filename(netcdf_file_path) # get_datetime_from_filename returns datetime
             self._netcdf_file_list.append((dt.timestamp(), netcdf_file_path))
 
-    def get_netcdf_files(self, cache,
+    def get_netcdf_files(self, cache, max_date_string=None,
                 sattelite_bucketname='snowlines-satellite'):
         """
         Searches the S3 for files and selects the ones that should be used,
         based on the timestamp. Downloads these to the cache if not
-        already present
-        TODO: allow for upper time limit
+        already present.
+        :param str max_date_string: The date string (almost same start of format as
+                in netcdf file name %Y%m%dT%H%M) as in 20121217T2158
         """
+        def complete(string, mustlen, completion):
+            """
+            Utility function, completes given string with completion string
+            """
+            return string + completion[len(string)-mustlen:]
         if not os.path.isdir(cache):
             raise OSError("Cache ({}) is not a directory".format(cache))
         if self._verbose:
             print("Seaching in {} for files".format(sattelite_bucketname))
+        if max_date_string is not None:
+            # Complete with hours and minutes if not given by lazy users
+            max_date_string = complete(max_date_string, 13, 'T2359')
+            max_timestamp = datetime.datetime.strptime(
+                        max_date_string, '%Y%m%dT%H%M').timestamp()
+        else:
+            max_timestamp = None
         satellite = SatelliteDB(dbbucketname=sattelite_bucketname,
                 **self._aws_dict)
         files_in_bucket = satellite.get_files()
+
         chosen_files = []
+        nfiles_too_old = 0
+        nfiles_too_new = 0
+        
         for netcdf_file in files_in_bucket:
             timestamp = get_datetime_from_filename(netcdf_file).timestamp()
-            # if timestamp > max_timestamp: continue
-            if self._usm.is_newer(timestamp):
+            use_file = True
+            if max_timestamp is not None and timestamp > max_timestamp:
+                nfiles_too_old += 1
+                use_file = False
+            if not(self._usm.is_newer(timestamp)):
+                nfiles_too_new += 1
+                use_file = False
+            if use_file:
                 chosen_files.append((timestamp, netcdf_file))
+
         if self._verbose:
             print("Found {} files, out of which {} are chosen based on"
                 " timestamp".format(len(files_in_bucket), len(chosen_files)))
+            print("{} files are too old\n{} files are too new".format(
+                nfiles_too_old, nfiles_too_new))
         if not chosen_files:
             # No files chosen means no download to be done
             return
@@ -124,10 +154,17 @@ class SnowMapUpdater(object):
             self._usm.save(store)
 
     def calculate_boundaries(self, size_filter_snow=0,
-            size_filter_nonsnow=0):
+            size_filter_nonsnow=0, allow_upload_without_update=False):
+
         if not (self._updated):
-            raise RuntimeError("Upload called without update having been"
-                    " performed")
+            print("There is nothing new to upload")
+            if allow_upload_without_update:
+                if self._verbose:
+                    print("Continuing with calculation, upload without update")
+            else:
+                # Raising this custom exception allows to handle this further down
+                raise UploadWithoutUpdateError(
+                        "Upload called without updates, stopping")
 
         if size_filter_snow and self._verbose:
             print("Reducing snow fields with parameter "
@@ -164,11 +201,13 @@ def update_snowmap(state_map=None, new_state_map=None,
         aws_access_key_id=None, aws_secret_access_key=None,
         size_filter_snow=0, size_filter_nonsnow=0,
         dry_run=False, no_upload=False, no_boundaries=False,
-        quiet=False, wipe_previous=False):
+        quiet=False, wipe_previous=False, max_date=None,
+        allow_upload_without_update=False):
     """
     Takes as input the path to a instance of UpdateMap (if None creates one)
     and queries the DB for satellite images newer than this UpdateMap.
-    Updates this Map with all newer images and stores this map in new_state_map, if given (otherwise will not store!)
+    Updates this Map with all newer images and stores this map in new_state_map,
+    if given (otherwise will not store!)
     :param string state_map: The path to the update map
     :param string netcdf_file_path: The path to the NetCDF file
     :param string new_state_map: Optional, path to the new update map
@@ -184,6 +223,10 @@ def update_snowmap(state_map=None, new_state_map=None,
     :param bool quiet: Quiet run, disable verbosity
     :param bool wipe_previous: Wipe the database from all previous data
         when uploading
+    :param str max_date: A string specifying the maximum time in the
+        format '%Y%m%dT%H%M or '%Y%m%d'
+    :param bool allow_upload_without_update: if True code will not raise
+        when trying to process a state without having updated it
     """
     smu = SnowMapUpdater(update_map_path=state_map,
             allow_blank=allow_blank, verbose=not(quiet),
@@ -195,12 +238,18 @@ def update_snowmap(state_map=None, new_state_map=None,
         if cache is None:
             raise ValueError("You need to provide a valid cache if "
                 "you don't manually set netcdf_file_path")
-        smu.get_netcdf_files(cache)
+        smu.get_netcdf_files(cache, max_date_string=max_date)
     smu.update(store=new_state_map)
     if no_boundaries:
         return
-    smu.calculate_boundaries(size_filter_snow=size_filter_snow,
-            size_filter_nonsnow=size_filter_nonsnow)
+    try:
+        smu.calculate_boundaries(size_filter_snow=size_filter_snow,
+            size_filter_nonsnow=size_filter_nonsnow,
+            allow_upload_without_update=allow_upload_without_update)
+    except UploadWithoutUpdateError as e:
+        # More graceful exit than allowing the exception to do that.
+        print(e)
+        return
     if no_upload:
         return
     smu.upload(dry_run=dry_run, wipe_previous=wipe_previous)
@@ -212,7 +261,8 @@ if __name__ == '__main__':
     parser = ArgumentParser()
     parser.add_argument('-s', '--state-map', help=('The path to the'
             ' state map to update'))
-    parser.add_argument('-n', '--new-state-map', help=('Where to store '               'the new state map (if not provided will not store'))
+    parser.add_argument('-n', '--new-state-map', help=('Where to store '
+            'the new state map (if not provided will not store'))
     parser.add_argument('--netcdf-files', nargs='+', help=("Path to NetCDF "
             "files to be used for update. If none is provided will query"
             " on AWS and download"))
@@ -236,11 +286,17 @@ if __name__ == '__main__':
                 'Will write files to be uploaded to a temporary directory')
     parser.add_argument('-q', '--quiet', action='store_true',
             help='Perform a quiet run (no verbose output)')
+    parser.add_argument('-a', '--allow-upload-without-update', action='store_true',
+            help='Allow for upload and processing also when there has been'
+                    ' no update (e.g., no new data)')
     parser.add_argument('--wipe-previous', action='store_true',
             help='Wipes all previous data from the database, use with care')
     parser.add_argument('--aws-access-key-id', help="Access key id for"
             "upload, othewise will be read in ~/.aws by boto3")
     parser.add_argument('--aws-secret-access-key', help="Access key for"
             "upload, othewise will be read in ~/.aws by boto3")
+    parser.add_argument('--max-date', help="The maximum date when querying "
+        "for the netcdf files. Format: YYYYmmdd(THHMM), Example: 20121217 "
+        "or 20121217T2350")    
     parsed = parser.parse_args()
     update_snowmap(**vars(parsed))

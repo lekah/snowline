@@ -110,6 +110,19 @@ class SnowlineDB(S3DB):
             if wipe_previous:
                 if verbose:
                     print(" Deleting previous data in DB")
+                # Before I do this, make a backup
+                for idx in range(1, 101):
+                    filepath = 'snowline-{}.json'.format(idx)
+                    if os.path.isfile(filepath):
+                        continue
+                    elif idx == 100:
+                        raise ValueError("Exceed number of filenames"
+                                " snowline-[1..100]")
+                    print("Keeping backup of previous database in {}".format(
+                            filepath))
+                    with open(filepath, 'w') as f:
+                        json.dump(database, f)
+                    break
                 database['data'] = []
 
             current_max_id = max([0] + [d['id'] for d in database['data']])

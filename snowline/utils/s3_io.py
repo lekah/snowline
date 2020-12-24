@@ -3,16 +3,22 @@ from snowline.analysis.snowmap import SnowMap
 from abc import ABCMeta
 
 
+FLOAT_PREC = 6
 def boundaries_to_geo(boundaries):
     features = []
     for boundary in boundaries:
         features.append({'type': 'Feature',
            'properties': {},
            'geometry': {'type': 'Polygon',
-            'coordinates':[b.tolist() for b in boundary]}})
+            'coordinates':[[(round(x, FLOAT_PREC), round(y, FLOAT_PREC))
+                    for x,y in b]
+                        for b in boundary]}})
+        #print('@', boundary[0])
 
     return {'type': 'FeatureCollection',
           'features':features}
+
+
 
 def geo_to_boundaries(geo_dict):
     return [feat['geometry']['coordinates']
@@ -103,7 +109,7 @@ class SnowlineDB(S3DB):
             if verbose:
                 print(" Done\nWriting snowline boundaries to {}...".format(new_sl_filename))
             with open(os.path.join(tmpdirname,new_sl_filename), 'w') as f:
-                json.dump(new_sl_data, f)
+                json.dump(new_sl_data, f, separators=(',', ':'))
 
 
             database['updated'] = timestamp

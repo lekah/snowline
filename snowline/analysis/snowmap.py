@@ -176,6 +176,8 @@ class SnowMap(object):
                             structure=self._structure)
         cluster_indices, counts = np.unique(snow_clusters, return_counts=True)
         msk_nonzero = cluster_indices != 0 # cluster 0 contains no snow, no need to include in count
+        # TODO use np.kron to augment data and scipy.convolve to smoothen it,
+        # such that the line become much nicer. Is this an issue?
         if transform:
             grid = Grid()
         for cluster_index in cluster_indices[msk_nonzero]:

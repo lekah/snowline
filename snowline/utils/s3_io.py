@@ -1,22 +1,10 @@
 import boto3, json, datetime, tempfile, os, shutil
 from snowline.analysis.snowmap import SnowMap
+from snowline.utils.geo_utils import boundaries_to_geo, geo_to_boundaries
 from abc import ABCMeta
 
-
-def boundaries_to_geo(boundaries):
-    features = []
-    for boundary in boundaries:
-        features.append({'type': 'Feature',
-           'properties': {},
-           'geometry': {'type': 'Polygon',
-            'coordinates':[b.tolist() for b in boundary]}})
-
-    return {'type': 'FeatureCollection',
-          'features':features}
-
-def geo_to_boundaries(geo_dict):
-    return [feat['geometry']['coordinates']
-            for feat in geo_dict['features']]
+DB_VERSION = 0.1
+BUCKET_URL = "https://snowlines.s3.eu-central-1.amazonaws.com"
 
 
 class S3DB(object, metaclass=ABCMeta):
@@ -89,12 +77,6 @@ class SnowlineDB(S3DB):
         with tempfile.TemporaryDirectory() as tmpdirname:
             if verbose:
                 print("Working in temporary directory {}".format(tmpdirname))
-            dbfilename = os.path.join(tmpdirname, self._dbname)
-            if verbose:
-                print("Downloading database...", end='')
-            dbobj.download_file(dbfilename)
-            with open(dbfilename) as f:
-                database = json.load(f)
 
             new_sl_data = boundaries_to_geo(boundaries)
             new_sl_filename = 'snowline_{}.json'.format(
@@ -103,9 +85,27 @@ class SnowlineDB(S3DB):
             if verbose:
                 print(" Done\nWriting snowline boundaries to {}...".format(new_sl_filename))
             with open(os.path.join(tmpdirname,new_sl_filename), 'w') as f:
-                json.dump(new_sl_data, f)
+                json.dump(new_sl_data, f, separators=(',', ':'))
 
-
+            dbfilename = os.path.join(tmpdirname, self._dbname)
+            try:
+                if verbose:
+                    print("Downloading database...", end='')
+                dbobj.download_file(dbfilename)
+                with open(dbfilename) as f:
+                    database = json.load(f)
+            except Exception as e:
+                print("An exception occured: {}".format(e))
+                if wipe_previous:
+                    # This is recoverable since I dont need the DB in that case
+                    if verbose:
+                        print("Deciding not to download database.")
+                    # TODO Improve this hardcoded shit:
+                    database = {
+                        "version": DB_VERSION,
+                        "bucket": BUCKET_URL}
+                else:
+                    raise e
             database['updated'] = timestamp
             if wipe_previous:
                 if verbose:

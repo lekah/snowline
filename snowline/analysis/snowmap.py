@@ -5,7 +5,7 @@ import tarfile, tempfile, json, os
 
 from scipy.ndimage import measurements
 from snowline.analysis.grid import Grid
-
+from snowline.utils.geo_utils import clean_up_line
 
 PIXEL_SNOW = 1
 PIXEL_UNKNOWN = 0
@@ -162,10 +162,12 @@ class SnowMap(object):
         return measurements.label(self._array==PIXEL_SNOW,
                 structure=self.  _structure)[1]
 
-    def get_boundaries(self, transform=False):
+    def get_boundaries(self, transform=False, clean=True):
         """
         Get the points around the snow patches
-        :param transform: transform to WGS coordinates based on internal grid
+        :param bool transform: transform to WGS coordinates based on internal grid
+        :param bool clean: Clean points, which removes all points that
+            lie on a straight line between two other points
         """
         # pad 0 around
         array = np.concatenate([np.zeros((1, self._array.shape[1])), self._array, 
@@ -183,6 +185,9 @@ class SnowMap(object):
         for cluster_index in cluster_indices[msk_nonzero]:
             cs  = plt.contour(snow_clusters==cluster_index, levels=(0.5,))
             boundaries_this_cluster = [(seg-1) for seg in cs.allsegs[0]]
+            if clean:
+                boundaries_this_cluster = [clean_up_line(line)
+                    for line in boundaries_this_cluster]
             if transform:
                 yield grid.transform_boundary(boundaries_this_cluster)
             else:
